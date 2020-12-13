@@ -1,0 +1,6 @@
+wasabi:
+  bucket_endpoint: "https://s3.us-central-1.wasabisys.com"
+  archive_bucket_name: "backups-v1"
+machine:
+  name: "mac-laptop"
+  backup_folder_path: "/Users/forsythetony/Documents/backups/python_script_backups"

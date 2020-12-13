@@ -1,0 +1,6 @@
+secrets/
+test_data/
+.vscode/
+env/
+temp/
+.DS_Store
