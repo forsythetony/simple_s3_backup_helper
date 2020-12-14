@@ -4,11 +4,11 @@ import argparse
 import boto3
 import logging as log
 import os
-import shutil
 import time
 import yaml
 
 from send2trash import send2trash
+from zipfile import ZipFile
 
 TEMP_DIR_NAME = "temp"
 
@@ -42,14 +42,14 @@ def setup_config():
 
     global CONFIG
 
-    with open('config.yml') as file:
+    with open(build_local_path('config.yml')) as file:
         CONFIG = yaml.safe_load(file)
 
 def setup_secrets():
     
     global WASABI_CREDENTIALS
 
-    with open('secrets/wasabi_credentials.yml') as file:
+    with open(build_local_path('secrets/wasabi_credentials.yml')) as file:
         WASABI_CREDENTIALS = yaml.safe_load(file)
 
 def setup_logging():
@@ -255,6 +255,47 @@ def cleanup(backup_folder_path):
     if TRASH_BACKUP_FOLDER:
         trash_backup_folder(backup_folder_path)
 
+def gather_files_to_zip(dir_to_zip):
+    """Crawls through a directory gathering all individual
+    file paths.
+
+    :param dir_to_zip: Path to the directory being zipped
+    :returns: List of files within the given directory
+    :rtype: [str]
+    """
+    files_to_zip = []
+
+    # crawling through directory and subdirectories 
+    for root, _, files in os.walk(dir_to_zip): 
+        for filename in files: 
+            # join the two strings in order to form the full filepath. 
+            filepath = os.path.join(root, filename) 
+            files_to_zip.append(filepath) 
+  
+    # returning all file paths 
+    return files_to_zip
+
+def zip_directory(source_dir, target_zip):
+    """Zips a given directory and places the resulting zip file
+    at the given location
+
+    :param source_dir: The directory being zipped
+    :param target_zip: The path to place the zipped file at
+    """
+
+    files_to_zip = gather_files_to_zip(source_dir)
+
+    total_files = len(files_to_zip)
+    log.info(f"Attempting to zip {total_files} files")
+
+    file_counter = 0
+
+    with ZipFile(target_zip,'w') as zip: 
+        for file in files_to_zip:
+            log.info(f"Zipping file {file_counter}/{total_files}")
+            zip.write(file)
+            file_counter += 1
+
 def main():
     setup()
     backup_folder_path = find_backup_folder()
@@ -263,13 +304,13 @@ def main():
 
     log.info(f"Will attempt to backup following directory 👉 {backup_folder_path}")
 
-    temp_zip_path = os.path.join(build_local_path(TEMP_DIR_NAME), backup_base_name)
+    temp_zip_path = os.path.join(build_local_path(TEMP_DIR_NAME), f"{backup_base_name}.zip")
 
-    shutil.make_archive(temp_zip_path, 'zip', backup_folder_path)
+    zip_directory(backup_folder_path, temp_zip_path)
 
     log.info(f"Placed the zipped directory here 👉 {temp_zip_path}")
 
-    upload_zipped_folder(backup_base_name, f"{temp_zip_path}.zip")
+    upload_zipped_folder(backup_base_name, temp_zip_path)
 
     cleanup(backup_folder_path)
 
